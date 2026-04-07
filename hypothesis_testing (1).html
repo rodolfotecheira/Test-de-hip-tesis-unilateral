@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contraste de Hipótesis</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f0f0f; color: #ddd; font-family: system-ui, sans-serif; padding: 24px; }
+  h1 { font-size: 18px; font-weight: 500; color: #eee; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #555; margin-bottom: 20px; }
+
+  .sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 40px; margin-bottom: 18px; }
+  .srow { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #aaa; }
+  .srow label { min-width: 160px; }
+  .srow input[type=range] { flex: 1; }
+  .sval { min-width: 44px; text-align: right; font-size: 13px; font-weight: 500; color: #eee; }
+
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .mc { border-radius: 8px; padding: 10px 12px; text-align: center; cursor: pointer; border: 2px solid transparent; transition: opacity 0.15s; user-select: none; }
+  .mc:hover { filter: brightness(1.15); }
+  .mc.off { background: #1e1e1e !important; border-color: #444 !important; }
+  .mc.off .mv { color: #888 !important; }
+  .mc.off .ml { color: #555; }
+  .mc.off .mc-badge { color: #666; }
+  .mv { font-size: 20px; font-weight: 500; }
+  .ml { font-size: 11px; color: #888; margin-top: 3px; }
+  .mc-badge { font-size: 10px; margin-top: 4px; color: #555; }
+
+  .mc-alpha { background: #2a1a1a; border-color: #e05c5c; } .mc-alpha .mv { color: #e05c5c; }
+  .mc-beta  { background: #1a1f2a; border-color: #4fa3e8; } .mc-beta  .mv { color: #4fa3e8; }
+  .mc-power { background: #1a2a1a; border-color: #5cb85c; } .mc-power .mv { color: #5cb85c; }
+  .mc-pval  { background: #242420; border-color: #f0c040; } .mc-pval  .mv { color: #f0c040; }
+
+  .panel { background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .ptitle { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .leg { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11px; color: #777; margin-bottom: 8px; }
+  .leg span { display: flex; align-items: center; gap: 4px; }
+  .dot { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  .hint { font-size: 11px; color: #555; margin-bottom: 14px; }
+
+  .formula-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .fcard { background: #111122; border-radius: 8px; padding: 10px 12px; font-size: 12px; color: #999; line-height: 1.6; border-left: 3px solid; }
+  .fcard strong { display: block; font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .fcard.alpha { border-color: #e05c5c; } .fcard.alpha strong { color: #e05c5c; }
+  .fcard.beta  { border-color: #4fa3e8; } .fcard.beta  strong { color: #4fa3e8; }
+  .fcard.power { border-color: #5cb85c; } .fcard.power strong { color: #5cb85c; }
+  .fcard.pval  { border-color: #f0c040; } .fcard.pval  strong { color: #f0c040; }
+
+  @media (max-width: 700px) {
+    .sliders { grid-template-columns: 1fr; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .formula-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Contraste de hipótesis</h1>
+<p class="subtitle">H₀: μ ≤ μ₀ &nbsp;vs&nbsp; H₁: μ > μ₀ &nbsp;·&nbsp; σ = 20 conocida &nbsp;·&nbsp; test unilateral &nbsp;·&nbsp; distribución muestral de x̄</p>
+
+<div class="sliders">
+  <div class="srow"><label>μ₀ (media bajo H₀)</label>    <input type="range" id="mu0" min="-10" max="10"  step="0.1" value="0">   <span class="sval" id="sv-mu0">0.0</span></div>
+  <div class="srow"><label>μ_verdadera (bajo H₁)</label> <input type="range" id="mu1" min="-10" max="20"  step="0.1" value="6">   <span class="sval" id="sv-mu1">6.0</span></div>
+  <div class="srow"><label>n (tamaño de muestra)</label> <input type="range" id="nn"  min="1"   max="100" step="1"   value="10">  <span class="sval" id="sv-nn">10</span></div>
+  <div class="srow"><label>Punto de corte x̄*</label>    <input type="range" id="cut" min="-15" max="20"  step="0.1" value="2.5"> <span class="sval" id="sv-cut">2.50</span></div>
+  <div class="srow"><label>Observación x̄_obs</label>    <input type="range" id="obs" min="-15" max="20"  step="0.1" value="4.0"> <span class="sval" id="sv-obs">4.00</span></div>
+  <div class="srow" style="grid-column:1/-1; margin-top:4px; padding-top:10px; border-top:1px solid #222;">
+    <input type="checkbox" id="fix-alpha-on" style="width:16px; height:16px; accent-color:#e05c5c;">
+    <label style="color:#e05c5c; min-width:auto;">Fijar α</label>
+    <input type="range" id="fix-alpha" min="0.001" max="0.20" step="0.001" value="0.05" style="flex:1; accent-color:#e05c5c;" disabled>
+    <span class="sval" style="color:#e05c5c;" id="sv-fix-alpha">0.050</span>
+    <span style="font-size:12px; color:#555; margin-left:12px;" id="fix-alpha-note">activar para calcular x̄* automáticamente</span>
+  </div></div>
+
+<p class="hint">Clic en cada tarjeta para mostrar u ocultar la región en el gráfico.</p>
+
+<div class="metrics">
+  <div class="mc mc-alpha" id="btn-alpha" onclick="toggleRegion('alpha')">
+    <div class="mv" id="m-alpha">—</div><div class="ml">α — Error tipo I</div>
+    <div class="mc-badge" id="badge-alpha">ocultar</div>
+  </div>
+  <div class="mc mc-beta" id="btn-beta" onclick="toggleRegion('beta')">
+    <div class="mv" id="m-beta">—</div><div class="ml">β — Error tipo II</div>
+    <div class="mc-badge" id="badge-beta">ocultar</div>
+  </div>
+  <div class="mc mc-power" id="btn-power" onclick="toggleRegion('power')">
+    <div class="mv" id="m-power">—</div><div class="ml">1−β — Potencia</div>
+    <div class="mc-badge" id="badge-power">ocultar</div>
+  </div>
+  <div class="mc mc-pval" id="btn-pval" onclick="toggleRegion('pval')">
+    <div class="mv" id="m-pval">—</div><div class="ml">p-valor</div>
+    <div class="mc-badge" id="badge-pval">ocultar</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="ptitle">Distribuciones muestrales de x̄ &nbsp;·&nbsp; x̄ ~ N(μ, 20/√n)</div>
+  <div class="leg">
+    <span><span class="dot" style="background:#4fa3e8;"></span>H₀</span>
+    <span><span class="dot" style="background:#e05c5c;"></span>H₁ (μ verdadera)</span>
+    <span><span class="dot" style="background:#e05c5c;opacity:0.5;"></span>α</span>
+    <span><span class="dot" style="background:#4fa3e8;opacity:0.4;"></span>β</span>
+    <span><span class="dot" style="background:#5cb85c;opacity:0.45;"></span>potencia</span>
+    <span><span class="dot" style="background:#f0c040;opacity:0.4;"></span>p-valor</span>
+  </div>
+  <div style="position:relative;height:300px;"><canvas id="cMain"></canvas></div>
+</div>
+
+<div class="formula-grid">
+  <div class="fcard alpha">
+    <strong>α — Error tipo I</strong>
+    Rechazar H₀ cuando H₀ es verdadera.<br>
+    α = P(x̄ &gt; x̄* | H₀)<br>
+    Área roja bajo H₀ a la derecha del corte.
+  </div>
+  <div class="fcard beta">
+    <strong>β — Error tipo II</strong>
+    No rechazar H₀ cuando H₁ es verdadera.<br>
+    β = P(x̄ ≤ x̄* | H₁)<br>
+    Área azul bajo H₁ a la izquierda del corte.
+  </div>
+  <div class="fcard power">
+    <strong>1−β — Potencia</strong>
+    Rechazar H₀ cuando H₁ es verdadera.<br>
+    1−β = P(x̄ &gt; x̄* | H₁)<br>
+    Área verde bajo H₁ a la derecha del corte.
+  </div>
+  <div class="fcard pval">
+    <strong>p-valor</strong>
+    P(x̄ ≥ x̄_obs | H₀)<br>
+    Área amarilla bajo H₀ desde x̄_obs.<br>
+    Si p &lt; α → rechazar H₀.
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+var visible = { alpha: true, beta: true, power: true, pval: true };
+
+function toggleRegion(name) {
+  visible[name] = !visible[name];
+  var btn = document.getElementById('btn-' + name);
+  var badge = document.getElementById('badge-' + name);
+  if (visible[name]) { btn.classList.remove('off'); badge.textContent = 'ocultar'; }
+  else               { btn.classList.add('off');    badge.textContent = 'mostrar'; }
+  update();
+}
+
+function erf(x) {
+  var s = x < 0 ? -1 : 1; x = Math.abs(x);
+  var t = 1 / (1 + 0.3275911 * x);
+  var y = 1 - (((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);
+  return s * y;
+}
+function normCDF(x, mu, sig) { return 0.5*(1+erf((x-mu)/(sig*Math.sqrt(2)))); }
+function normPDF(x, mu, sig) { return Math.exp(-0.5*((x-mu)/sig)**2)/(sig*Math.sqrt(2*Math.PI)); }
+
+function normCDFInvStd(p) {
+  var a = [2.515517,0.802853,0.010328];
+  var b = [1.432788,0.189269,0.001308];
+  var t = Math.sqrt(-2*Math.log(p < 0.5 ? p : 1-p));
+  var z = t - (a[0]+a[1]*t+a[2]*t*t)/(1+b[0]*t+b[1]*t*t+b[2]*t*t*t);
+  return p < 0.5 ? -z : z;
+}
+function normCDFInv(p, mu, sig) { return mu + sig * normCDFInvStd(p); }
+
+var mainChart;
+var N = 500;
+var XMIN = -40, XMAX = 50;
+
+function makePoints(mu, sig) {
+  var pts = [];
+  for (var i = 0; i <= N; i++) {
+    var x = XMIN + (XMAX - XMIN) * i / N;
+    pts.push({ x: x, y: normPDF(x, mu, sig) });
+  }
+  return pts;
+}
+
+function makeFill(mu, sig, condition) {
+  var pts = [];
+  for (var i = 0; i <= N; i++) {
+    var x = XMIN + (XMAX - XMIN) * i / N;
+    pts.push({ x: x, y: condition(x) ? normPDF(x, mu, sig) : 0 });
+  }
+  return pts;
+}
+
+function update() {
+  var mu0 = parseFloat(document.getElementById('mu0').value);
+  var mu1 = parseFloat(document.getElementById('mu1').value);
+  var nn  = parseFloat(document.getElementById('nn').value);
+  var obs = parseFloat(document.getElementById('obs').value);
+
+  document.getElementById('sv-mu0').textContent = mu0.toFixed(1);
+  document.getElementById('sv-mu1').textContent = mu1.toFixed(1);
+  document.getElementById('sv-nn').textContent  = nn;
+  document.getElementById('sv-obs').textContent = obs.toFixed(2);
+
+  var sig = 20 / Math.sqrt(nn);
+
+  var fixOn = document.getElementById('fix-alpha-on').checked;
+  var fixAlphaVal = parseFloat(document.getElementById('fix-alpha').value);
+  var cut;
+  if (fixOn) {
+    cut = normCDFInv(1 - fixAlphaVal, mu0, sig);
+    document.getElementById('cut').value = Math.min(Math.max(cut, -15), 20);
+    document.getElementById('sv-fix-alpha').textContent = fixAlphaVal.toFixed(3);
+    document.getElementById('fix-alpha-note').textContent = '→ x̄* fijado en ' + cut.toFixed(2);
+  } else {
+    cut = parseFloat(document.getElementById('cut').value);
+    document.getElementById('fix-alpha-note').textContent = 'activar para calcular x̄* automáticamente';
+  }
+  document.getElementById('sv-cut').textContent = cut.toFixed(2);
+
+  var alpha = 1 - normCDF(cut, mu0, sig);
+  var beta  = normCDF(cut, mu1, sig);
+  var power = 1 - beta;
+  var pval  = 1 - normCDF(obs, mu0, sig);
+
+  document.getElementById('m-alpha').textContent = (alpha*100).toFixed(1)+'%';
+  document.getElementById('m-beta').textContent  = (beta*100).toFixed(1)+'%';
+  document.getElementById('m-power').textContent = (power*100).toFixed(1)+'%';
+  document.getElementById('m-pval').textContent  = pval < 0.001 ? '<0.001' : pval.toFixed(3);
+
+  mainChart.data.datasets[0].data = makePoints(mu0, sig);
+  mainChart.data.datasets[1].data = makePoints(mu1, sig);
+  mainChart.data.datasets[2].data = visible.alpha ? makeFill(mu0, sig, function(x){ return x >= cut; }) : [];
+  mainChart.data.datasets[3].data = visible.beta  ? makeFill(mu1, sig, function(x){ return x <= cut; }) : [];
+  mainChart.data.datasets[4].data = visible.power ? makeFill(mu1, sig, function(x){ return x >= cut; }) : [];
+  mainChart.data.datasets[5].data = visible.pval  ? makeFill(mu0, sig, function(x){ return x >= obs; }) : [];
+
+  var annotations = {
+    cut: {
+      type: 'line', scaleID: 'x', value: cut,
+      borderColor: 'rgba(220,220,220,0.8)', borderWidth: 2, borderDash: [5,3],
+      label: { content: 'x̄* = '+cut.toFixed(2), display: true, position: 'start',
+               backgroundColor: 'rgba(25,25,25,0.9)', color: '#eee', font:{size:10}, padding:4 }
+    }
+  };
+  if (visible.pval) {
+    annotations.obs = {
+      type: 'line', scaleID: 'x', value: obs,
+      borderColor: 'rgba(240,192,64,0.85)', borderWidth: 2, borderDash: [3,3],
+      label: { content: 'x̄_obs = '+obs.toFixed(2), display: true, position: 'end',
+               backgroundColor: 'rgba(25,25,15,0.9)', color: '#f0c040', font:{size:10}, padding:4 }
+    };
+  }
+  mainChart.options.plugins.annotation = { annotations: annotations };
+  mainChart.update('none');
+}
+
+window.addEventListener('load', function() {
+  var ctx = document.getElementById('cMain').getContext('2d');
+  mainChart = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets: [
+      { data: [], showLine: true, borderColor: '#4fa3e8', borderWidth: 2.5, pointRadius: 0, fill: false, tension: 0.3 },
+      { data: [], showLine: true, borderColor: '#e05c5c', borderWidth: 2.5, pointRadius: 0, fill: false, tension: 0.3 },
+      { data: [], showLine: true, borderColor: 'transparent', backgroundColor: 'rgba(224,92,92,0.50)',  fill: 'origin', pointRadius: 0, tension: 0.3 },
+      { data: [], showLine: true, borderColor: 'transparent', backgroundColor: 'rgba(79,163,232,0.38)', fill: 'origin', pointRadius: 0, tension: 0.3 },
+      { data: [], showLine: true, borderColor: 'transparent', backgroundColor: 'rgba(92,184,92,0.42)',  fill: 'origin', pointRadius: 0, tension: 0.3 },
+      { data: [], showLine: true, borderColor: 'transparent', backgroundColor: 'rgba(240,192,64,0.38)', fill: 'origin', pointRadius: 0, tension: 0.3 }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: {
+          type: 'linear', min: XMIN, max: XMAX,
+          ticks: { maxTicksLimit: 14, font:{size:10}, color:'#666' },
+          grid: { color:'rgba(255,255,255,0.04)' }, border:{color:'#333'}
+        },
+        y: {
+          ticks: { font:{size:10}, color:'#666' },
+          grid: { color:'rgba(255,255,255,0.04)' }, border:{color:'#333'}
+        }
+      }
+    }
+  });
+
+  ['mu0','mu1','nn','cut','obs','fix-alpha'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', update);
+  });
+  update();
+
+  document.getElementById('fix-alpha-on').addEventListener('change', function() {
+    var on = this.checked;
+    document.getElementById('fix-alpha').disabled = !on;
+    document.getElementById('cut').disabled = on;
+    update();
+  });
+});
+</script>
+</body>
+</html>
